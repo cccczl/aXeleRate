@@ -52,10 +52,9 @@ class Segnet(NetworkExecutor):
     def __init__(self, label_file, model_file, overlay):
         super().__init__(model_file)
 
-        if not os.path.exists(label_file):
-            self.labels = [label_file]
-        else:   
-            self.labels = load_labels(label_file)
+        self.labels = (
+            load_labels(label_file) if os.path.exists(label_file) else [label_file]
+        )
 
         self.class_colors = [(random.randint(0, 255), random.randint(0, 255), random.randint(0, 255)) for _ in range(256)]
         self.legend_img = get_legends(self.labels, self.class_colors)
@@ -105,7 +104,7 @@ if args.source == "cv":
 elif args.source == "picamera":
     from camera_pi import Camera
     source = 0
-    
+
 Camera.set_video_source(source)
 
 segnet = Segnet(args.labels, args.model, args.overlay)

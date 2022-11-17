@@ -47,10 +47,11 @@ class NetworkExecutor(object):
 def main(args):
     video, video_writer, frame_count = init_video_file_capture(args.file, 'segnet_demo')
 
-    if not os.path.exists(args.labels[0]):
-        labels = args.labels
-    else:   
-        labels = load_labels(args.labels[0])
+    labels = (
+        load_labels(args.labels[0])
+        if os.path.exists(args.labels[0])
+        else args.labels
+    )
 
     class_colors = [(random.randint(0, 255), random.randint(0, 255), random.randint(0, 255)) for _ in range(256)]
     legend_img = get_legends(labels, class_colors)
@@ -80,12 +81,12 @@ def main(args):
     print('Finished processing frames')
     video.release(), video_writer.release()
 
-    print("Average time(ms): ", sum(times)//frame_num) 
+    print("Average time(ms): ", sum(times)//frame_num)
     print("FPS: ", 1000.0 / (sum(times)//frame_num)) # FPS = 1 / time to process loop
 
-if __name__ == "__main__" :
+if __name__ == "__main__":
 
-    print("OpenCV version: {}".format(cv2. __version__))
+    print(f"OpenCV version: {cv2.__version__}")
 
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument('--model', help='File path of .tflite file.', required=True)

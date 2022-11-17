@@ -53,9 +53,7 @@ def segnet_decoder(f, n_classes, n_up=3):
 def _segnet(n_classes, encoder_input, encoder_output,  input_height=416, input_width=608, encoder_level=3):
 
     o = segnet_decoder(f=encoder_output, n_classes=n_classes, n_up=encoder_level-1)
-    model = get_segmentation_model(encoder_input, o)
-
-    return model
+    return get_segmentation_model(encoder_input, o)
 
 def full_yolo_segnet(n_classes, input_size, encoder_level, weights):
 
@@ -127,11 +125,11 @@ def resnet50_segnet(n_classes, input_size, encoder_level, weights):
 
 
 def mobilenet_segnet(n_classes, input_size, encoder_level, weights, architecture = 'MobileNet2_5'):
-    
+
     encoder = create_feature_extractor(architecture, input_size, weights)
     encoder_output = encoder.feature_extractor.layers[mobilenet[encoder_level]].output
     encoder_input = encoder.feature_extractor.inputs[0]
-    
+
     model = _segnet(n_classes, encoder_input, encoder_output, input_size, encoder_level=encoder_level)
     model.model_name = "mobilenet_segnet"
     model.normalize = encoder.normalize

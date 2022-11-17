@@ -42,10 +42,7 @@ class Interp(layers.Layer):
         return resized
 
     def compute_output_shape(self, input_shape):
-        return tuple([None,
-                      self.new_size[0],
-                      self.new_size[1],
-                      input_shape[3]])
+        return None, self.new_size[0], self.new_size[1], input_shape[3]
 
     def get_config(self):
         config = super(Interp, self).get_config()
@@ -63,12 +60,15 @@ class Interp(layers.Layer):
 def residual_conv(prev, level, pad=1, lvl=1, sub_lvl=1, modify_stride=False):
     lvl = str(lvl)
     sub_lvl = str(sub_lvl)
-    names = ["conv" + lvl + "_" + sub_lvl + "_1x1_reduce",
-             "conv" + lvl + "_" + sub_lvl + "_1x1_reduce_bn",
-             "conv" + lvl + "_" + sub_lvl + "_3x3",
-             "conv" + lvl + "_" + sub_lvl + "_3x3_bn",
-             "conv" + lvl + "_" + sub_lvl + "_1x1_increase",
-             "conv" + lvl + "_" + sub_lvl + "_1x1_increase_bn"]
+    names = [
+        f"conv{lvl}_{sub_lvl}_1x1_reduce",
+        f"conv{lvl}_{sub_lvl}_1x1_reduce_bn",
+        f"conv{lvl}_{sub_lvl}_3x3",
+        f"conv{lvl}_{sub_lvl}_3x3_bn",
+        f"conv{lvl}_{sub_lvl}_1x1_increase",
+        f"conv{lvl}_{sub_lvl}_1x1_increase_bn",
+    ]
+
     if modify_stride is False:
         prev = Conv2D(64 * level, (1, 1), strides=(1, 1), name=names[0],
                       use_bias=False)(prev)
@@ -95,8 +95,7 @@ def short_convolution_branch(prev, level, lvl=1, sub_lvl=1,
                              modify_stride=False):
     lvl = str(lvl)
     sub_lvl = str(sub_lvl)
-    names = ["conv" + lvl + "_" + sub_lvl + "_1x1_proj",
-             "conv" + lvl + "_" + sub_lvl + "_1x1_proj_bn"]
+    names = [f"conv{lvl}_{sub_lvl}_1x1_proj", f"conv{lvl}_{sub_lvl}_1x1_proj_bn"]
 
     if modify_stride is False:
         prev = Conv2D(256 * level, (1, 1), strides=(1, 1), name=names[0],
@@ -123,8 +122,7 @@ def residual_short(prev_layer, level, pad=1, lvl=1, sub_lvl=1,
     block_2 = short_convolution_branch(prev_layer, level,
                                        lvl=lvl, sub_lvl=sub_lvl,
                                        modify_stride=modify_stride)
-    added = Add()([block_1, block_2])
-    return added
+    return Add()([block_1, block_2])
 
 
 def residual_empty(prev_layer, level, pad=1, lvl=1, sub_lvl=1):
@@ -133,8 +131,7 @@ def residual_empty(prev_layer, level, pad=1, lvl=1, sub_lvl=1):
     block_1 = residual_conv(prev_layer, level, pad=pad,
                             lvl=lvl, sub_lvl=sub_lvl)
     block_2 = empty_branch(prev_layer)
-    added = Add()([block_1, block_2])
-    return added
+    return Add()([block_1, block_2])
 
 
 def ResNet(inp, layers):
@@ -220,10 +217,7 @@ def interp_block(prev_layer, level, feature_map_shape, input_shape):
               input_shape, " are not defined.")
         exit(1)
 
-    names = [
-        "conv5_3_pool" + str(level) + "_conv",
-        "conv5_3_pool" + str(level) + "_conv_bn"
-    ]
+    names = [f"conv5_3_pool{str(level)}_conv", f"conv5_3_pool{str(level)}_conv_bn"]
     kernel = (kernel_strides_map[level], kernel_strides_map[level])
     strides = (kernel_strides_map[level], kernel_strides_map[level])
     prev_layer = AveragePooling2D(kernel, strides=strides)(prev_layer)
@@ -280,6 +274,4 @@ def _build_pspnet(nb_classes, resnet_layers, input_shape,
     #    input_shape[0], input_shape[1])})(x)
     x = Interp([input_shape[0], input_shape[1]])(x)
 
-    model = get_segmentation_model(inp, x)
-
-    return model
+    return get_segmentation_model(inp, x)

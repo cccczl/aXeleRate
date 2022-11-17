@@ -57,8 +57,7 @@ def _to_bbs(boxes, labels, shape):
         x1,y1,x2,y2 = boxes[i]
         new_box = BoundingBox(x1,y1,x2,y2, labels[i])
         new_boxes.append(new_box)
-    bbs = BoundingBoxesOnImage(new_boxes, shape)
-    return bbs
+    return BoundingBoxesOnImage(new_boxes, shape)
 
 def _to_array(bbs):
     new_boxes = []
@@ -77,42 +76,38 @@ def _to_array(bbs):
 def process_image_detection(image, boxes, labels, desired_w, desired_h, augment):
     
     # resize the image to standard size
-    if (desired_w and desired_h) or augment:
-        bbs = _to_bbs(boxes, labels, image.shape)
-
-        if (desired_w and desired_h):
-            # Rescale image and bounding boxes
-            image = ia.imresize_single_image(image, (desired_w, desired_h))
-            bbs = bbs.on(image)
-
-        if augment:
-            aug_pipe = _create_augment_pipeline()
-            image, bbs = aug_pipe(image=image, bounding_boxes=bbs)
-            bbs = bbs.remove_out_of_image().clip_out_of_image()
-
-        new_boxes, new_labels = _to_array(bbs)
-        #if len(new_boxes) != len(boxes):
-        #    print(new_boxes)
-        #    print(boxes)
-        #    print("_________________")
-
-        return image, np.array(new_boxes), new_labels
-    else:
+    if (not desired_w or not desired_h) and not augment:
         return image, np.array(boxes), labels
+    bbs = _to_bbs(boxes, labels, image.shape)
+
+    if (desired_w and desired_h):
+        # Rescale image and bounding boxes
+        image = ia.imresize_single_image(image, (desired_w, desired_h))
+        bbs = bbs.on(image)
+
+    if augment:
+        aug_pipe = _create_augment_pipeline()
+        image, bbs = aug_pipe(image=image, bounding_boxes=bbs)
+        bbs = bbs.remove_out_of_image().clip_out_of_image()
+
+    new_boxes, new_labels = _to_array(bbs)
+    #if len(new_boxes) != len(boxes):
+    #    print(new_boxes)
+    #    print(boxes)
+    #    print("_________________")
+
+    return image, np.array(new_boxes), new_labels
 
 def process_image_classification(image, desired_w, desired_h, augment):
     
-    # resize the image to standard size
-    if (desired_w and desired_h) or augment:
+    if (desired_w and desired_h):
+        # Rescale image
+        image = ia.imresize_single_image(image, (desired_w, desired_h))
 
-        if (desired_w and desired_h):
-            # Rescale image
-            image = ia.imresize_single_image(image, (desired_w, desired_h))
+    if augment:
+        aug_pipe = _create_augment_pipeline()
+        image = aug_pipe(image=image)
 
-        if augment:
-            aug_pipe = _create_augment_pipeline()
-            image = aug_pipe(image=image)
-        
     return image
 
 def process_image_segmentation(image, segmap, input_w, input_h, output_w, output_h, augment):
@@ -120,14 +115,14 @@ def process_image_segmentation(image, segmap, input_w, input_h, output_w, output
     if (input_w and input_h) or augment:
         segmap = SegmentationMapsOnImage(segmap, shape=image.shape)
 
-        if (input_w and input_h):
-            # Rescale image and segmaps
-            image = ia.imresize_single_image(image, (input_w, input_h))
-            segmap = segmap.resize((output_w, output_h), interpolation="nearest")
+    if (input_w and input_h):
+        # Rescale image and segmaps
+        image = ia.imresize_single_image(image, (input_w, input_h))
+        segmap = segmap.resize((output_w, output_h), interpolation="nearest")
 
-        if augment:
-            aug_pipe = _create_augment_pipeline()
-            image, segmap = aug_pipe(image=image, segmentation_maps=segmap)
+    if augment:
+        aug_pipe = _create_augment_pipeline()
+        image, segmap = aug_pipe(image=image, segmentation_maps=segmap)
 
     return image, segmap.get_arr()
 
@@ -136,34 +131,51 @@ def _create_augment_pipeline():
 
     sometimes = lambda aug: iaa.Sometimes(0.1, aug)
 
-    aug_pipe = iaa.Sequential(
+    return iaa.Sequential(
         [
-            iaa.Fliplr(0.5), 
-            iaa.Flipud(0.2), 
+            iaa.Fliplr(0.5),
+            iaa.Flipud(0.2),
             iaa.Affine(translate_percent={"x": (-0.1, 0.1), "y": (-0.1, 0.1)}),
-            iaa.OneOf([iaa.Affine(scale=(0.8, 1.2)),
-                        iaa.Affine(rotate=(-10, 10)),
-                        iaa.Affine(shear=(-10, 10))]),
-
-                        sometimes(iaa.OneOf([
-                               iaa.GaussianBlur((0, 3.0)),
-                               iaa.AverageBlur(k=(2, 7)),
-                               iaa.MedianBlur(k=(3, 11)),
-                           ])),
-                           sometimes(iaa.Sharpen(alpha=(0, 1.0), lightness=(0.75, 1.5))),
-                           sometimes(iaa.AdditiveGaussianNoise(loc=0, scale=(0.0, 0.05 * 255), per_channel=0.5)),
-                           sometimes(iaa.OneOf([
-                               iaa.Dropout((0.01, 0.1), per_channel=0.5),
-                               iaa.CoarseDropout((0.03, 0.15), size_percent=(0.02, 0.05), per_channel=0.2),
-                           ])),
-                           sometimes(iaa.Add((-10, 10), per_channel=0.5)),  
-                           sometimes(iaa.Multiply((0.5, 1.5), per_channel=0.5)), 
-                           sometimes(iaa.ContrastNormalization((0.5, 2.0), per_channel=0.5)) 
+            iaa.OneOf(
+                [
+                    iaa.Affine(scale=(0.8, 1.2)),
+                    iaa.Affine(rotate=(-10, 10)),
+                    iaa.Affine(shear=(-10, 10)),
+                ]
+            ),
+            sometimes(
+                iaa.OneOf(
+                    [
+                        iaa.GaussianBlur((0, 3.0)),
+                        iaa.AverageBlur(k=(2, 7)),
+                        iaa.MedianBlur(k=(3, 11)),
+                    ]
+                )
+            ),
+            sometimes(iaa.Sharpen(alpha=(0, 1.0), lightness=(0.75, 1.5))),
+            sometimes(
+                iaa.AdditiveGaussianNoise(
+                    loc=0, scale=(0.0, 0.05 * 255), per_channel=0.5
+                )
+            ),
+            sometimes(
+                iaa.OneOf(
+                    [
+                        iaa.Dropout((0.01, 0.1), per_channel=0.5),
+                        iaa.CoarseDropout(
+                            (0.03, 0.15),
+                            size_percent=(0.02, 0.05),
+                            per_channel=0.2,
+                        ),
+                    ]
+                )
+            ),
+            sometimes(iaa.Add((-10, 10), per_channel=0.5)),
+            sometimes(iaa.Multiply((0.5, 1.5), per_channel=0.5)),
+            sometimes(iaa.ContrastNormalization((0.5, 2.0), per_channel=0.5)),
         ],
-        random_order=True
+        random_order=True,
     )
-
-    return aug_pipe
 
 
 def visualize_detection_dataset(img_folder, ann_folder, num_imgs = None, img_size=None, augment=None):
@@ -184,16 +196,20 @@ def visualize_detection_dataset(img_folder, ann_folder, num_imgs = None, img_siz
         boxes = parser.get_boxes(annotation_file)
         img_file =  os.path.join(img_folder, fname)
         img, boxes_, labels_ = aug.imread(img_file, boxes, labels)
-        
+
         for i in range(len(boxes_)):
             x1, y1, x2, y2 = boxes_[i]
             cv2.rectangle(img, (x1,y1), (x2,y2), (0,255,0), 3)
-            cv2.putText(img, 
-                        '{}'.format(labels_[i]), 
-                        (x1, y1 - 13), 
-                        cv2.FONT_HERSHEY_SIMPLEX, 
-                        1e-3 * img.shape[0], 
-                        (255,0,0), 1)
+            cv2.putText(
+                img,
+                f'{labels_[i]}',
+                (x1, y1 - 13),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                1e-3 * img.shape[0],
+                (255, 0, 0),
+                1,
+            )
+
 
         plt.imshow(img)
         plt.show(block=False)
@@ -262,7 +278,7 @@ def visualize_classification_dataset(img_folder, num_imgs = None, img_size=None,
     image_search = lambda ext : glob.glob(img_folder + ext, recursive=True)
     for ext in ['/**/*.jpg', '/**/*.jpeg', '/**/*.png']: image_files_list.extend(image_search(ext))
     random.shuffle(image_files_list)
-    for filename in image_files_list[0:num_imgs]:
+    for filename in image_files_list[:num_imgs]:
         image = cv2.imread(filename)[...,::-1]
         image = process_image_classification(image, img_size, img_size, augment)
         cv2.putText(image, os.path.dirname(filename).split('/')[-1], (10,30), font, image.shape[1]/700 , (255, 0, 0), 2, True)

@@ -20,10 +20,10 @@ cwd = os.path.dirname(os.path.realpath(__file__))
 def run_command(cmd, cwd=None):
     with subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, executable='/bin/bash', universal_newlines=True, cwd=cwd) as p:
         while True:
-            line = p.stdout.readline()
-            if not line:
+            if line := p.stdout.readline():
+                print(line)
+            else:
                 break
-            print(line)    
         exit_code = p.poll()
     return exit_code
 
@@ -53,17 +53,16 @@ class Converter(object):
                 cmd = "bash install_edge_tpu_compiler.sh"
                 result = run_command(cmd, cwd)
                 print(result)
-                
+
         if 'openvino' in converter_type:
-            rc = os.path.isdir('/opt/intel/openvino')
-            if rc:
+            if rc := os.path.isdir('/opt/intel/openvino'):
                 print('OpenVINO Converter ready')
             else:
                 print('Installing OpenVINO Converter')
                 cmd = "bash install_openvino.sh"
                 result = run_command(cmd, cwd)
                 print(result)       
-                
+
         self._converter_type = converter_type
         self._backend = backend
         self._dataset_path=dataset_path
@@ -108,7 +107,7 @@ class Converter(object):
     def convert_edgetpu(self, model_path):
         output_path = os.path.dirname(model_path)
         print(output_path)
-        cmd = "edgetpu_compiler --out_dir {} {}".format(output_path, model_path)
+        cmd = f"edgetpu_compiler --out_dir {output_path} {model_path}"
         print(cmd)
         result = run_command(cmd)
         print(result)
@@ -118,7 +117,8 @@ class Converter(object):
         output_name = os.path.basename(model_path).split(".")[0]+".kmodel"
         output_path = os.path.join(os.path.dirname(model_path),output_name)
         print(output_path)
-        cmd = '{} compile "{}" "{}" -i tflite --weights-quantize-threshold 1000 --dataset-format raw --dataset "{}"'.format(k210_converter_path, model_path, output_path, folder_name)
+        cmd = f'{k210_converter_path} compile "{model_path}" "{output_path}" -i tflite --weights-quantize-threshold 1000 --dataset-format raw --dataset "{folder_name}"'
+
         print(cmd)
         result = run_command(cmd)
         shutil.rmtree(folder_name, ignore_errors=True)
@@ -127,15 +127,17 @@ class Converter(object):
     def convert_ir(self, model_path, model_layers):
         input_model = os.path.join(model_path.split(".")[0], "saved_model.pb")
         output_dir = os.path.dirname(model_path)
-        output_layer = model_layers[-2].name+'/BiasAdd'
-        cmd = 'source /opt/intel/openvino/bin/setupvars.sh && python3 /opt/intel/openvino/deployment_tools/model_optimizer/mo.py --input_model "{}" --output {} --batch 1 --reverse_input_channels --data_type FP16 --mean_values [127.5,127.5,127.5] --scale_values [127.5] --output_dir "{}"'.format(input_model, output_layer, output_dir)
+        output_layer = f'{model_layers[-2].name}/BiasAdd'
+        cmd = f'source /opt/intel/openvino/bin/setupvars.sh && python3 /opt/intel/openvino/deployment_tools/model_optimizer/mo.py --input_model "{input_model}" --output {output_layer} --batch 1 --reverse_input_channels --data_type FP16 --mean_values [127.5,127.5,127.5] --scale_values [127.5] --output_dir "{output_dir}"'
+
         print(cmd)
         result = run_command(cmd)
         print(result)
 
     def convert_oak(self, model_path):
         output_name = model_path.split(".")[0]+".blob"
-        cmd = 'source /opt/intel/openvino/bin/setupvars.sh && /opt/intel/openvino/deployment_tools/inference_engine/lib/intel64/myriad_compile -m "{}" -o "{}" -ip U8 -VPU_MYRIAD_PLATFORM VPU_MYRIAD_2480 -VPU_NUMBER_OF_SHAVES 4 -VPU_NUMBER_OF_CMX_SLICES 4'.format(model_path.split(".")[0] + '.xml', output_name)
+        cmd = f"""source /opt/intel/openvino/bin/setupvars.sh && /opt/intel/openvino/deployment_tools/inference_engine/lib/intel64/myriad_compile -m "{model_path.split(".")[0] + '.xml'}" -o "{output_name}" -ip U8 -VPU_MYRIAD_PLATFORM VPU_MYRIAD_2480 -VPU_NUMBER_OF_SHAVES 4 -VPU_NUMBER_OF_CMX_SLICES 4"""
+
         print(cmd)
         result = run_command(cmd)
         print(result)

@@ -26,12 +26,11 @@ class Classifier:
     self.height=224
 
   def preprocess(self, img):
-      image = img.astype(np.float32)
-      image = image / 255.
-      image = image - 0.5
-      image = image * 2.
-      image = image[:, :, ::-1]
-      return image
+    image = img.astype(np.float32)
+    image = image / 255.
+    image = image - 0.5
+    image = image * 2.
+    return image[:, :, ::-1]
 
   def load_labels(self, path):
     with open(path, 'r') as f:
@@ -61,21 +60,18 @@ args = parser.parse_args()
 classifier = Classifier(args.labels,args.model)
 camera = cv2.VideoCapture(args.source)
 
-while(camera.isOpened()):
-    ret, frame = camera.read()
-    image = classifier.classify(frame)
-    if ret == True:
+while (camera.isOpened()):
+  ret, frame = camera.read()
+  image = classifier.classify(frame)
+  if ret != True:
+    break
 
-        # Display the resulting frame
-        cv2.imshow('Frame', image)
+  # Display the resulting frame
+  cv2.imshow('Frame', image)
 
-        # Press Q on keyboard to  exit
-        if cv2.waitKey(25) & 0xFF == ord('q'):
-          break
-
-    # Break the loop
-    else: 
-        break
+  # Press Q on keyboard to  exit
+  if cv2.waitKey(25) & 0xFF == ord('q'):
+    break
 
 # When everything done, release the video capture object
 camera.release()

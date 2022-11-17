@@ -3,9 +3,9 @@ import argparse
 import os
 from onnx import ModelProto
 import tensorrt as trt 
- 
+
 batch_size = 1 
- 
+
 parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 parser.add_argument('--onnx', help='File path to .onnx model', required=True)
 parser.add_argument('--precision', help='FP32 or FP16', required=True)

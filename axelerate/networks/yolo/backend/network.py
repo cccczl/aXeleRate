@@ -13,11 +13,7 @@ def create_yolo_network(architecture,
                         nb_box,
                         weights):
     feature_extractor = create_feature_extractor(architecture, input_size, weights)
-    yolo_net = YoloNetwork(feature_extractor,
-                           input_size,
-                           nb_classes,
-                           nb_box)
-    return yolo_net
+    return YoloNetwork(feature_extractor, input_size, nb_classes, nb_box)
 
 
 class YoloNetwork(object):
@@ -30,14 +26,19 @@ class YoloNetwork(object):
         
         # 1. create full network
         grid_size_x, grid_size_y = feature_extractor.get_output_size()
-        
+
         # make the object detection layer
-        output_tensor = Conv2D(nb_box * (4 + 1 + nb_classes), (1,1), strides=(1,1),
-                               padding='same', 
-                               name='detection_layer_{}'.format(nb_box * (4 + 1 + nb_classes)), 
-                               kernel_initializer='lecun_normal')(feature_extractor.feature_extractor.outputs[0])
+        output_tensor = Conv2D(
+            nb_box * (4 + 1 + nb_classes),
+            (1, 1),
+            strides=(1, 1),
+            padding='same',
+            name=f'detection_layer_{nb_box * (4 + 1 + nb_classes)}',
+            kernel_initializer='lecun_normal',
+        )(feature_extractor.feature_extractor.outputs[0])
+
         output_tensor = Reshape((grid_size_x, grid_size_y, nb_box, 4 + 1 + nb_classes))(output_tensor)
-    
+
         model = Model(feature_extractor.feature_extractor.inputs[0], output_tensor, name='yolo')
         self._norm = feature_extractor.normalize
         self._model = model
@@ -57,8 +58,7 @@ class YoloNetwork(object):
         self._model.load_weights(weight_path, by_name=by_name)
         
     def forward(self, image):
-        netout = self._model.predict(image)[0]
-        return netout
+        return self._model.predict(image)[0]
 
     def get_model(self, first_trainable_layer=None):
         return self._model

@@ -33,12 +33,12 @@ def show_image(filename):
     print(filename)
 
 def create_ann(filename, image, boxes, right_label, label_list):
-    copyfile(filename, 'test_img/'+os.path.basename(filename))
+    copyfile(filename, f'test_img/{os.path.basename(filename)}')
     writer = Writer(filename, image.shape[0], image.shape[1])
     for i in range(len(right_label)):
     	writer.addObject(label_list[right_label[i]], boxes[i][0], boxes[i][1], boxes[i][2], boxes[i][3])
     name = os.path.basename(filename).split('.')
-    writer.save('test_ann/'+name[0]+'.xml')
+    writer.save(f'test_ann/{name[0]}.xml')
 
 def prepare_image(img_path, network):
     orig_image = cv2.imread(img_path)
@@ -62,9 +62,12 @@ def setup_inference(config, weights, threshold=0.3, create_dataset=None):
     """make directory to save inference results """
     dirname = os.path.join(os.path.dirname(weights),'Inference_results')
     if os.path.isdir(dirname):
-        print("Folder {} is already exists. Image files in directory might be overwritten".format(dirname))
+        print(
+            f"Folder {dirname} is already exists. Image files in directory might be overwritten"
+        )
+
     else:
-        print("Folder {} is created.".format(dirname))
+        print(f"Folder {dirname} is created.")
         os.makedirs(dirname)
 
     if config['model']['type']=='SegNet':
@@ -83,40 +86,39 @@ def setup_inference(config, weights, threshold=0.3, create_dataset=None):
             show_image(out_fname)
 
     if config['model']['type']=='Classifier':
-        print('Classifier')    
-        if config['model']['labels']:
-            labels = config['model']['labels']
-        else:
-            labels = get_labels(config['train']['train_image_folder'])
-            
+        print('Classifier')
+        labels = config['model']['labels'] or get_labels(
+            config['train']['train_image_folder']
+        )
+
         # 1.Construct the model 
         classifier = create_classifier(config['model']['architecture'],
                                        labels,
                                        input_size,
                                        config['model']['fully-connected'],
                                        config['model']['dropout'])  
-                                        
+
         # 2. Load the pretrained weights (if any) 
         classifier.load_weights(weights)
-        
+
         font = cv2.FONT_HERSHEY_SIMPLEX
         valid_image_folder = config['train']['valid_image_folder']
-        image_files_list = glob.glob(valid_image_folder + '/**/*.jpg', recursive=True)
-        
+        image_files_list = glob.glob(f'{valid_image_folder}/**/*.jpg', recursive=True)
+
         inference_time = []
+        left = 10
         for filename in image_files_list:
             output_path = os.path.join(dirname, os.path.basename(filename))
             orig_image, input_image = prepare_image(filename, classifier)
             prediction_time, img_class, prob = classifier.predict(input_image)
             inference_time.append(prediction_time)
-            
+
             # label shape and colorization
             text = "{}:{:.2f}".format(img_class[0], prob[0])
             background_color = (70, 120, 70) # grayish green background for text
             text_color = (255, 255, 255)   # white text
 
             size = cv2.getTextSize(text, cv2.FONT_HERSHEY_SIMPLEX, 0.5, 1)[0]
-            left = 10
             top = 30 - size[1]
             right = left + size[0]
             bottom = top + size[1]
@@ -127,9 +129,12 @@ def setup_inference(config, weights, threshold=0.3, create_dataset=None):
             cv2.putText(orig_image, text, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.5, text_color, 1)
             cv2.imwrite(output_path, orig_image)
             show_image(output_path)
-            print("{}:{}".format(img_class[0], prob[0]))
+            print(f"{img_class[0]}:{prob[0]}")
         if len(inference_time)>1:
-            print("Average prediction time:{} ms".format(sum(inference_time[1:])/len(inference_time[1:])))
+            print(
+                f"Average prediction time:{sum(inference_time[1:]) / len(inference_time[1:])} ms"
+            )
+
 
     if config['model']['type']=='Detector':
         # 2. create yolo instance & predict
@@ -138,10 +143,10 @@ def setup_inference(config, weights, threshold=0.3, create_dataset=None):
                            input_size,
                            config['model']['anchors'])
         yolo.load_weights(weights)
-        
+
         valid_image_folder = config['train']['valid_image_folder']
-        image_files_list = glob.glob(valid_image_folder + '/**/*.jpg', recursive=True)
-        
+        image_files_list = glob.glob(f'{valid_image_folder}/**/*.jpg', recursive=True)
+
         inference_time = []
         for i in range(len(image_files_list)):
             img_path = image_files_list[i]
@@ -152,18 +157,20 @@ def setup_inference(config, weights, threshold=0.3, create_dataset=None):
             prediction_time, boxes, probs = yolo.predict(input_image, height, width, float(threshold))
             inference_time.append(prediction_time)
             labels = np.argmax(probs, axis=1) if len(probs) > 0 else []
-             
+
             # 4. save detection result
             orig_image = draw_boxes(orig_image, boxes, probs, config['model']['labels'])
             output_path = os.path.join(dirname, os.path.split(img_fname)[-1])
             if len(probs) > 0 and create_dataset:
                 create_ann(img_path, orig_image, boxes, labels, config['model']['labels'])
             cv2.imwrite(output_path, orig_image)
-            print("{}-boxes are detected. {} saved.".format(len(boxes), output_path))
+            print(f"{len(boxes)}-boxes are detected. {output_path} saved.")
             show_image(output_path)
 
         if len(inference_time)>1:
-            print("Average prediction time:{} ms".format(sum(inference_time[1:])/len(inference_time[1:])))
+            print(
+                f"Average prediction time:{sum(inference_time[1:]) / len(inference_time[1:])} ms"
+            )
 
 if __name__ == '__main__':
     # 1. extract arguments

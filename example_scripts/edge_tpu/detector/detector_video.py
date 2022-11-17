@@ -29,28 +29,25 @@ class Detector(object):
         img = img - 0.5
         img = img * 2.
         img = img[:, :, ::-1]
-        img = np.expand_dims(img, 0)
-        return img
+        return np.expand_dims(img, 0)
 
     def get_output_tensor(self, index):
-      """Returns the output tensor at the given index."""
-      output_details = self.interpreter.get_output_details()[index]
-      tensor = np.squeeze(self.interpreter.get_tensor(output_details['index']))
-      return tensor
+        """Returns the output tensor at the given index."""
+        output_details = self.interpreter.get_output_details()[index]
+        return np.squeeze(self.interpreter.get_tensor(output_details['index']))
 
     def detect_objects(self, image):
-      """Returns a list of detection results, each a dictionary of object info."""
-      img = self.preprocess(image)
-      self.interpreter.set_tensor(self.tensor_index, img)
-      self.interpreter.invoke()
-      # Get all output details
-      raw_detections = self.get_output_tensor(0)
-      output_shape = [7, 7, 5, 6]
-      output = np.reshape(raw_detections, output_shape)
-      return output 
+        """Returns a list of detection results, each a dictionary of object info."""
+        img = self.preprocess(image)
+        self.interpreter.set_tensor(self.tensor_index, img)
+        self.interpreter.invoke()
+        # Get all output details
+        raw_detections = self.get_output_tensor(0)
+        output_shape = [7, 7, 5, 6]
+        return np.reshape(raw_detections, output_shape) 
 
     def detect(self, original_image):
-        self.output_height, self.output_width = original_image.shape[0:2]
+        self.output_height, self.output_width = original_image.shape[:2]
         start_time = time.time()
         results = self.detect_objects(original_image)
         elapsed_ms = (time.time() - start_time) * 1000
@@ -89,7 +86,7 @@ class Detector(object):
         """
         grid_h, grid_w, nb_box = netout.shape[:3]
         boxes = []
-        
+
         # decode the output by the network
         netout[..., 4]  = _sigmoid(netout[..., 4])
         netout[..., 5:] = netout[..., 4][..., np.newaxis] * _softmax(netout[..., 5:])
@@ -100,7 +97,7 @@ class Detector(object):
                 for b in range(nb_box):
                     # from 4th element onwards are confidence and class classes
                     classes = netout[row,col,b,5:]
-                    
+
                     if np.sum(classes) > 0:
                         # first 4 elements are x, y, w, and h
                         x, y, w, h = netout[row,col,b,:4]
@@ -112,7 +109,7 @@ class Detector(object):
                         confidence = netout[row,col,b,4]
                         box = BoundBox(x, y, w, h, confidence, classes)
                         boxes.append(box)
-        
+
         boxes = nms_boxes(boxes, len(classes), nms_threshold, self._threshold)
         boxes, probs = boxes_to_array(boxes)
         return boxes, probs
@@ -137,21 +134,18 @@ args = parser.parse_args()
 detector = Detector(args.labels, args.model, args.threshold)
 camera = cv2.VideoCapture(2)
 
-while(camera.isOpened()):
+while (camera.isOpened()):
     ret, frame = camera.read()
     image = detector.detect(frame)
-    if ret == True:
-
-        # Display the resulting frame
-        cv2.imshow('Frame', image)
-
-        # Press Q on keyboard to  exit
-        if cv2.waitKey(25) & 0xFF == ord('q'):
-          break
-
-    # Break the loop
-    else: 
+    if ret != True:
         break
+
+    # Display the resulting frame
+    cv2.imshow('Frame', image)
+
+    # Press Q on keyboard to  exit
+    if cv2.waitKey(25) & 0xFF == ord('q'):
+      break
 
 # When everything done, release the video capture object
 camera.release()

@@ -177,21 +177,27 @@ class BatchFromFilesMixin():
                              '; expected "rgb", "rgba", or "gray".')
         self.color_mode = color_mode
         self.data_format = data_format
-        if self.color_mode == 'rgba':
-            if self.data_format == 'channels_last':
-                self.image_shape = self.target_size + (4,)
-            else:
-                self.image_shape = (4,) + self.target_size
-        elif self.color_mode == 'rgb':
-            if self.data_format == 'channels_last':
-                self.image_shape = self.target_size + (3,)
-            else:
-                self.image_shape = (3,) + self.target_size
+        if self.color_mode == 'rgb':
+            self.image_shape = (
+                self.target_size + (3,)
+                if self.data_format == 'channels_last'
+                else (3,) + self.target_size
+            )
+
+        elif self.color_mode == 'rgba':
+            self.image_shape = (
+                self.target_size + (4,)
+                if self.data_format == 'channels_last'
+                else (4,) + self.target_size
+            )
+
         else:
-            if self.data_format == 'channels_last':
-                self.image_shape = self.target_size + (1,)
-            else:
-                self.image_shape = (1,) + self.target_size
+            self.image_shape = (
+                self.target_size + (1,)
+                if self.data_format == 'channels_last'
+                else (1,) + self.target_size
+            )
+
         self.save_to_dir = save_to_dir
         self.save_prefix = save_prefix
         self.save_format = save_format
@@ -223,7 +229,7 @@ class BatchFromFilesMixin():
         # build batch of image data
         # self.filepaths is dynamic, is better to call it once outside the loop
         filepaths = self.filepaths
-        
+
         # build batch of image data
         batch_x = np.array([load_img(filepaths[x], 
                                      color_mode=self.color_mode,
@@ -248,7 +254,7 @@ class BatchFromFilesMixin():
                     format=self.save_format)
                 img.save(os.path.join(self.save_to_dir, fname))
         # build batch of labels
-            
+
         if self.class_mode == 'input':
             batch_y = batch_x.copy()
         elif self.class_mode in {'binary', 'sparse'}:
@@ -282,7 +288,7 @@ class BatchFromFilesMixin():
         else:
             imgs, _ = self._get_batch_of_samples(img_arr, apply_standardization=apply_standardization)
             lbls = np.array(self.labels)[img_arr]
-        
+
             try:
                 inv_class_indices = {v: k for k, v in self.class_indices.items()}
                 lbls = [inv_class_indices.get(k) for k in lbls]
@@ -292,7 +298,7 @@ class BatchFromFilesMixin():
         if self.data_format == "channels_first":
             imgs = np.array([np.swapaxes(img,0,2) for img in imgs])
 
-        if not 'figsize' in plt_kwargs:
+        if 'figsize' not in plt_kwargs:
             plt_kwargs['figsize'] = (12,12)
 
         plt.close('all')
@@ -304,7 +310,7 @@ class BatchFromFilesMixin():
             if lbls is not None:
                 plt.title(lbls[idx])
             plt.axis('off')
-        
+
         plt.subplots_adjust(hspace=0.5, wspace=0.5)
         plt.show()
         
@@ -312,21 +318,18 @@ class BatchFromFilesMixin():
     def filepaths(self):
         """List of absolute paths to image files"""
         raise NotImplementedError(
-            '`filepaths` property method has not been implemented in {}.'
-            .format(type(self).__name__)
+            f'`filepaths` property method has not been implemented in {type(self).__name__}.'
         )
 
     @property
     def labels(self):
         """Class labels of every observation"""
         raise NotImplementedError(
-            '`labels` property method has not been implemented in {}.'
-            .format(type(self).__name__)
+            f'`labels` property method has not been implemented in {type(self).__name__}.'
         )
 
     @property
     def sample_weight(self):
         raise NotImplementedError(
-            '`sample_weight` property method has not been implemented in {}.'
-            .format(type(self).__name__)
+            f'`sample_weight` property method has not been implemented in {type(self).__name__}.'
         )

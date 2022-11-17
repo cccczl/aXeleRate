@@ -68,7 +68,7 @@ def save_img(path,
         **kwargs: Additional keyword arguments passed to `PIL.Image.save()`.
     """
     img = array_to_img(x, data_format=data_format, scale=scale)
-    if img.mode == 'RGBA' and (file_format == 'jpg' or file_format == 'jpeg'):
+    if img.mode == 'RGBA' and file_format in ['jpg', 'jpeg']:
         warnings.warn('The JPG format does not support '
                       'RGBA images, converting to RGB.')
         img = img.convert('RGB')
@@ -79,28 +79,24 @@ def load_img(fname, color_mode='rgb', target_size=None, interpolation=cv2.INTER_
     if color_mode == "rgb":
         img = cv2.imread(fname)
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-        
+
     elif color_mode == "rgba":
         img = cv2.imread(fname,-1) 
         if img.shape[-1]!=4: #Add alpha-channel if not RGBA
             img = cv2.cvtColor(img, cv2.COLOR_BGR2RGBA)
-            
+
     elif color_mode == "gray":
         img = cv2.imread(fname, 0)
 
     else:
         img = cv2.imread(fname)
-        
+
     if target_size is not None:
         width_height_tuple = (target_size[1], target_size[0])
-        if img.shape[0:2] != width_height_tuple:
+        if img.shape[:2] != width_height_tuple:
             img = cv2.resize(img, dsize=width_height_tuple, interpolation = interpolation)
 
-    if color_mode == "gray":
-        return img[..., np.newaxis] #Add dummy axis. This is done here, cause `cv2.resize` removes the dummy axes
-
-    else:
-        return img
+    return img[..., np.newaxis] if color_mode == "gray" else img
 
 
 def list_pictures(directory, ext=('jpg', 'jpeg', 'bmp', 'png', 'ppm', 'tif',
@@ -114,7 +110,7 @@ def list_pictures(directory, ext=('jpg', 'jpeg', 'bmp', 'png', 'ppm', 'tif',
     # Returns
         a list of paths
     """
-    ext = tuple('.%s' % e for e in ((ext,) if isinstance(ext, str) else ext))
+    ext = tuple(f'.{e}' for e in ((ext,) if isinstance(ext, str) else ext))
     return [os.path.join(root, f)
             for root, _, files in os.walk(directory) for f in files
             if f.lower().endswith(ext)]
@@ -220,7 +216,7 @@ def array_to_img(x, data_format='channels_last', scale=True, dtype='float32'):
                          'Got array with shape: %s' % (x.shape,))
 
     if data_format not in {'channels_first', 'channels_last'}:
-        raise ValueError('Invalid data_format: %s' % data_format)
+        raise ValueError(f'Invalid data_format: {data_format}')
 
     # Original Numpy array x has format (height, width, channel)
     # or (channel, height, width)
@@ -243,7 +239,7 @@ def array_to_img(x, data_format='channels_last', scale=True, dtype='float32'):
         # grayscale
         return pil_image.fromarray(x[:, :, 0].astype('uint8'), 'L')
     else:
-        raise ValueError('Unsupported channel number: %s' % (x.shape[2],))
+        raise ValueError(f'Unsupported channel number: {x.shape[2]}')
 
 
 def img_to_array(img, data_format='channels_last', dtype='float32'):
@@ -262,7 +258,7 @@ def img_to_array(img, data_format='channels_last', dtype='float32'):
         ValueError: if invalid `img` or `data_format` is passed.
     """
     if data_format not in {'channels_first', 'channels_last'}:
-        raise ValueError('Unknown data_format: %s' % data_format)
+        raise ValueError(f'Unknown data_format: {data_format}')
     # Numpy array x has format (height, width, channel)
     # or (channel, height, width)
     # but original PIL image has format (width, height, channel)
@@ -276,5 +272,5 @@ def img_to_array(img, data_format='channels_last', dtype='float32'):
         else:
             x = x.reshape((x.shape[0], x.shape[1], 1))
     else:
-        raise ValueError('Unsupported image shape: %s' % (x.shape,))
+        raise ValueError(f'Unsupported image shape: {x.shape}')
     return x

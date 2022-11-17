@@ -103,9 +103,7 @@ def _unet(n_classes, encoder, l1_skip_conn=True, input_height=416,
     o = Conv2D(n_classes, (3, 3), padding='same',
                data_format=IMAGE_ORDERING)(o)
 
-    model = get_segmentation_model(img_input, o)
-
-    return model
+    return get_segmentation_model(img_input, o)
 
 
 def unet(n_classes, input_height=416, input_width=608, encoder_level=3):

@@ -29,9 +29,7 @@ def create_segnet(architecture, input_size, n_classes, weights = None):
         model = mobilenet_segnet(n_classes, input_size, encoder_level=4, weights = weights, architecture = architecture)
 
     output_size = (model.output_height, model.output_width)
-    network = Segnet(model, input_size, n_classes, model.normalize, output_size)
-
-    return network
+    return Segnet(model, input_size, n_classes, model.normalize, output_size)
 
 class Segnet(object):
     def __init__(self,
@@ -57,8 +55,7 @@ class Segnet(object):
         preprocessed_image = prepare_image(image, show=False)
         pred = model.predict(preprocessed_image)
         predicted_class_indices=np.argmax(pred, axis=1)
-        predictions = [labels[k] for k in predicted_class_indices]
-        return predictions
+        return [labels[k] for k in predicted_class_indices]
 
     def train(self,
               img_folder,
@@ -76,7 +73,7 @@ class Segnet(object):
               ignore_zero_class=False,
               metrics='val_loss'):
         
-        if metrics != "val_accuracy" and metrics != "val_loss":
+        if metrics not in ["val_accuracy", "val_loss"]:
             print("Unknown metric for SegNet, valid options are: val_loss or val_accuracy. Defaulting ot val_loss")
             metrics = "val_loss"
 
@@ -89,6 +86,6 @@ class Segnet(object):
 
         validation_generator = create_batch_generator(valid_img_folder, valid_ann_folder, self._input_size, 
                                self._output_size, self._n_classes, batch_size, valid_times, False, self._norm)
-        
+
         return train(self._network, loss_k, train_generator, validation_generator, learning_rate, nb_epoch, project_folder, first_trainable_layer, self, metrics)
     

@@ -20,8 +20,7 @@ def sigmoid(x):
 def calculate_overlap(x1, w1, x2, w2):
     box1_coordinate = max(x1 - w1 / 2.0, x2 - w2 / 2.0)
     box2_coordinate = min(x1 + w1 / 2.0, x2 + w2 / 2.0)
-    overlap = box2_coordinate - box1_coordinate
-    return overlap
+    return box2_coordinate - box1_coordinate
 
 
 def calculate_iou(box, truth):
@@ -34,14 +33,13 @@ def calculate_iou(box, truth):
 
     intersection_area = width_overlap * height_overlap
     union_area = box[2] * box[3] + truth[2] * truth[3] - intersection_area
-    iou = intersection_area / union_area
-    return iou
+    return intersection_area / union_area
 
 
 def apply_nms(boxes):
     # sort the boxes by score in descending order
     sorted_boxes = sorted(boxes, key=lambda d: d[7])[::-1]
-    high_iou_objs = dict()
+    high_iou_objs = {}
     # compare the iou for each of the detected objects
     for current_object in range(len(sorted_boxes)):
         if current_object in high_iou_objs:
@@ -56,12 +54,11 @@ def apply_nms(boxes):
             if iou >= IOU_THRESHOLD:
                 high_iou_objs[next_object] = 1
 
-    # filter and sort detected items
-    filtered_result = list()
-    for current_object in range(len(sorted_boxes)):
-        if current_object not in high_iou_objs:
-            filtered_result.append(sorted_boxes[current_object])
-    return filtered_result
+    return [
+        sorted_boxes[current_object]
+        for current_object in range(len(sorted_boxes))
+        if current_object not in high_iou_objs
+    ]
 
 def post_processing(output, label_list, threshold):
 
@@ -75,7 +72,10 @@ def post_processing(output, label_list, threshold):
 
     original_results = np.reshape(original_results, (num_anchor_boxes, 5+num_classes, num_grids, num_grids))
     reordered_results = np.transpose(original_results, (2, 3, 0, 1))
-    reordered_results = np.reshape(reordered_results, (num_grids*num_grids, num_anchor_boxes, 5+num_classes))
+    reordered_results = np.reshape(
+        reordered_results, (num_grids**2, num_anchor_boxes, 5 + num_classes)
+    )
+
 
     # The 125 results need to be re-organized into 5 chunks of 25 values
     # 20 classes + 1 score + 4 coordinates = 25 values
@@ -94,13 +94,11 @@ def post_processing(output, label_list, threshold):
     # shapes for the 5 Tiny Yolo v2 bounding boxes
     anchor_boxes = [0.57273, 0.677385, 1.87446, 2.06253, 3.33843, 5.47434, 7.88282, 3.52778, 9.77052, 9.16828]
 
-    boxes = list()
+    boxes = []
     # iterate through the grids and anchor boxes and filter out all scores which do not exceed the DETECTION_THRESHOLD
     for row in range(num_grids):
         for col in range(num_grids):
             for anchor_box_num in range(num_anchor_boxes):
-                box = list()
-                class_list = list()
                 current_score_total = 0
                 # calculate the coordinates for the current anchor box
                 box_x = (col + sigmoid(reordered_results[row * num_grids + col][anchor_box_num][0])) / 7.0
@@ -109,10 +107,13 @@ def post_processing(output, label_list, threshold):
                          anchor_boxes[2 * anchor_box_num]) / 7.0
                 box_h = (np.exp(reordered_results[row * num_grids + col][anchor_box_num][3]) *
                          anchor_boxes[2 * anchor_box_num + 1]) / 7.0
-                
-                # find the class with the highest score
-                for class_enum in range(num_classes):
-                    class_list.append(reordered_results[row * num_grids + col][anchor_box_num][5 + class_enum])
+
+                class_list = [
+                    reordered_results[row * num_grids + col][anchor_box_num][
+                        5 + class_enum
+                    ]
+                    for class_enum in range(num_classes)
+                ]
 
                 current_score_total = sum(class_list)
                 for current_class in range(len(class_list)):
@@ -127,22 +128,22 @@ def post_processing(output, label_list, threshold):
                 # the final score for the detected object
                 final_object_score = object_confidence * highest_class_score
 
-                box.append(box_x)
-                box.append(box_y)
-                box.append(box_w)
-                box.append(box_h)
-                box.append(class_w_highest_score)
-                box.append(object_confidence)
-                box.append(highest_class_score)
-                box.append(final_object_score)
+                box = [
+                    box_x,
+                    box_y,
+                    box_w,
+                    box_h,
+                    class_w_highest_score,
+                    object_confidence,
+                    highest_class_score,
+                    final_object_score,
+                ]
 
                 # filter out all detected objects with a score less than the threshold
                 if final_object_score > threshold:
                     boxes.append(box)
 
-    # gets rid of all duplicate boxes using non-maximal suppression
-    results = apply_nms(boxes)
-    return results
+    return apply_nms(boxes)
 
 def show_tiny_yolo(results, original_img, is_depth=0):
 
@@ -159,19 +160,17 @@ def show_tiny_yolo(results, original_img, is_depth=0):
         box_ymin = int((box[1] - box[3] / 2.0) * image_height)
         box_ymax = int((box[1] + box[3] / 2.0) * image_height)
         # ensure the box is not drawn out of the window resolution
-        if box_xmin < 0:
-            box_xmin = 0
-        if box_xmax > image_width:
-            box_xmax = image_width
-        if box_ymin < 0:
-            box_ymin = 0
-        if box_ymax > image_height:
-            box_ymax = image_height
+        box_xmin = max(box_xmin, 0)
+        box_xmax = min(box_xmax, image_width)
+        box_ymin = max(box_ymin, 0)
+        box_ymax = min(box_ymax, image_height)
+        print(
+            f" - object: {YELLOW}{label_list[box[4]]}{NOCOLOR} is at left: {str(box_xmin)} top: {str(box_ymin)} right: {str(box_xmax)} bottom: {str(box_ymax)}"
+        )
 
-        print(" - object: " + YELLOW + label_list[box[4]] + NOCOLOR + " is at left: " + str(box_xmin) + " top: " + str(box_ymin) + " right: " + str(box_xmax) + " bottom: " + str(box_ymax))
 
         # label shape and colorization
-        label_text = label_list[box[4]] + " " + str("{0:.2f}".format(box[5]*box[6]))
+        label_text = f"{label_list[box[4]]} " + "{0:.2f}".format(box[5]*box[6])
         label_background_color = (70, 120, 70) # grayish green background for text
         label_text_color = (255, 255, 255)   # white text
 
@@ -200,7 +199,7 @@ parser.add_argument('--threshold', help='Confidence threshold.', default=0.4)
 args = parser.parse_args()
 
 if __name__ == "__main__" :
-    
+
     if not depthai.init_device(consts.resource_paths.device_cmd_fpath):
         raise RuntimeError("Error initializing device. Try to reset it.")
 
@@ -223,7 +222,7 @@ if __name__ == "__main__" :
             raw_detections.dtype = np.float16  
             raw_detections = np.squeeze(raw_detections)
             recv = True
-            
+
         for packet in data_packets:
             if packet.stream_name == 'previewout':
                 data = packet.getData()

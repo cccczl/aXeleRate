@@ -56,18 +56,18 @@ class Detector(object):
         """
         grid_h, grid_w, nb_box = netout.shape[:3]
         boxes = []
-        
+
         # decode the output by the network
         netout[..., 4]  = _sigmoid(netout[..., 4])
         netout[..., 5:] = netout[..., 4][..., np.newaxis] * _softmax(netout[..., 5:])
         netout[..., 5:] *= netout[..., 5:] > self._threshold
-        
+
         for row in range(grid_h):
             for col in range(grid_w):
                 for b in range(nb_box):
                     # from 4th element onwards are confidence and class classes
                     classes = netout[row,col,b,5:]
-                    
+
                     if np.sum(classes) > 0:
                         # first 4 elements are x, y, w, and h
                         x, y, w, h = netout[row,col,b,:4]
@@ -79,7 +79,7 @@ class Detector(object):
                         confidence = netout[row,col,b,4]
                         box = BoundBox(x, y, w, h, confidence, classes)
                         boxes.append(box)
-        
+
         boxes = nms_boxes(boxes, len(classes), nms_threshold, self._threshold)
         boxes, probs = boxes_to_array(boxes)
         return boxes, probs
@@ -103,8 +103,8 @@ args = parser.parse_args()
 
 if __name__ == "__main__" :
     detector = Detector(args.labels, args.model, args.threshold)
-    
-    
+
+
     if not depthai.init_device(consts.resource_paths.device_cmd_fpath):
         raise RuntimeError("Error initializing device. Try to reset it.")
 
@@ -130,7 +130,7 @@ if __name__ == "__main__" :
             output = np.reshape(raw_detections, output_shape)
             output = np.transpose(output, (2, 3, 0, 1))
             recv = True
-            
+
         for packet in data_packets:
             if packet.stream_name == 'previewout':
                 data = packet.getData()

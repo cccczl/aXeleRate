@@ -13,28 +13,27 @@ def create_datagen(train_folder, valid_folder, batch_size, input_size, project_f
 
     train_datagen=ImageDataAugmentor(preprocess_input=  norm, process_image = process_image_classification, augment = augumentation)
     validation_datagen=ImageDataAugmentor(preprocess_input = norm, process_image = process_image_classification, augment = False)
-    
+
     train_generator=train_datagen.flow_from_directory(train_folder,
-                                                     target_size=input_size,
-                                                     color_mode='rgb',
-                                                     batch_size=batch_size,
-                                                     class_mode='categorical', 
-			                                         shuffle=True)
+    target_size=input_size,
+    color_mode='rgb',
+    batch_size=batch_size,
+    class_mode='categorical', 
+    shuffle=True)
 
     validation_generator=validation_datagen.flow_from_directory(valid_folder,
-                                                     target_size=input_size,
-                                                     color_mode='rgb',
-                                                     batch_size=batch_size,
-                                                     class_mode='categorical', 
-			                                         shuffle=True)		
-				                                         
+    target_size=input_size,
+    color_mode='rgb',
+    batch_size=batch_size,
+    class_mode='categorical', 
+    shuffle=True)		
+
     labels = (train_generator.class_indices)
-    labels = dict((v,k) for k,v in labels.items())
-    fo = open(os.path.join(project_folder,"labels.txt"), "w")
-    for k,v in labels.items():
-        print(v)
-        fo.write(v+"\n")
-    fo.close()
+    labels = {v: k for k,v in labels.items()}
+    with open(os.path.join(project_folder,"labels.txt"), "w") as fo:
+        for v in labels.values():
+            print(v)
+            fo.write(v+"\n")
     return train_generator, validation_generator
     
     
@@ -80,7 +79,7 @@ class ImageDataAugmentor(Sequence):
             self.channel_axis = 1
             self.row_axis = 2
             self.col_axis = 3
-        if data_format == 'channels_last':
+        elif data_format == 'channels_last':
             self.channel_axis = 3
             self.row_axis = 1
             self.col_axis = 2

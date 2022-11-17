@@ -201,10 +201,10 @@ class FullYoloFeature(BaseFeatureExtractor):
 
         if weights == 'imagenet':
             print('Imagenet for YOLO backend are not available yet, defaulting to random weights')
-        elif weights == None:
+        elif weights is None:
             pass
         else:
-            print('Loaded backend weigths: '+weights)
+            print(f'Loaded backend weigths: {weights}')
             self.feature_extractor.load_weights(weights)
 
     def normalize(self, image):
@@ -222,9 +222,17 @@ class TinyYoloFeature(BaseFeatureExtractor):
         x = MaxPooling2D(pool_size=(2, 2))(x)
 
         # Layer 2 - 5
-        for i in range(0,4):
-            x = Conv2D(24*(2**i), (3,3), strides=(1,1), padding='same', name='conv_' + str(i+2), use_bias=False)(x)
-            x = BatchNormalization(name='norm_' + str(i+2))(x)
+        for i in range(4):
+            x = Conv2D(
+                24 * (2**i),
+                (3, 3),
+                strides=(1, 1),
+                padding='same',
+                name=f'conv_{str(i + 2)}',
+                use_bias=False,
+            )(x)
+
+            x = BatchNormalization(name=f'norm_{str(i + 2)}')(x)
             x = LeakyReLU(alpha=0.1)(x)
             x = MaxPooling2D(pool_size=(2, 2))(x)
 
@@ -235,19 +243,25 @@ class TinyYoloFeature(BaseFeatureExtractor):
         x = MaxPooling2D(pool_size=(2, 2), strides=(1,1), padding='same')(x)
 
         # Layer 7 - 8
-        for i in range(0,2):
-            x = Conv2D(312, (3,3), strides=(1,1), padding='same', name='conv_' + str(i+7), use_bias=False)(x)
-            x = BatchNormalization(name='norm_' + str(i+7))(x)
+        for i in range(2):
+            x = Conv2D(
+                312,
+                (3, 3),
+                strides=(1, 1),
+                padding='same',
+                name=f'conv_{str(i + 7)}',
+                use_bias=False,
+            )(x)
+
+            x = BatchNormalization(name=f'norm_{str(i + 7)}')(x)
             x = LeakyReLU(alpha=0.1)(x)
 
         self.feature_extractor = Model(input_image, x)
 
         if weights == 'imagenet':
             print('Imagenet for YOLO backend are not available yet, defaulting to random weights')
-        elif weights == None:
-            pass
-        else:
-            print('Loaded backend weigths: '+weights)
+        elif weights != None:
+            print(f'Loaded backend weigths: {weights}')
             self.feature_extractor.load_weights(weights)
 
 
@@ -270,7 +284,7 @@ class MobileNetFeature(BaseFeatureExtractor):
         else:
             mobilenet = MobileNet(input_shape=(input_size[0],input_size[1],3),alpha = alpha,depth_multiplier = 1, dropout = 0.001, weights = None, include_top=False, backend=tensorflow.keras.backend, layers=tensorflow.keras.layers,models=tensorflow.keras.models,utils=tensorflow.keras.utils)
             if weights:
-                print('Loaded backend weigths: '+weights)
+                print(f'Loaded backend weigths: {weights}')
                 mobilenet.load_weights(weights)
 
         #x = mobilenet(input_image)
@@ -279,9 +293,7 @@ class MobileNetFeature(BaseFeatureExtractor):
     def normalize(self, image):
         image = image / 255.
         image = image - 0.5
-        image = image * 2.
-
-        return image		
+        return image * 2.		
 
 class SqueezeNetFeature(BaseFeatureExtractor):
     """docstring for ClassName"""
@@ -294,7 +306,7 @@ class SqueezeNetFeature(BaseFeatureExtractor):
         relu   = "relu_"
 
         def fire_module(x, fire_id, squeeze=16, expand=64):
-            s_id = 'fire' + str(fire_id) + '/'
+            s_id = f'fire{str(fire_id)}/'
             x = Conv2D(squeeze, (1, 1), padding='valid', name=s_id + sq1x1)(x)
             x = Activation('relu', name=s_id + relu + sq1x1)(x)
 
@@ -304,7 +316,7 @@ class SqueezeNetFeature(BaseFeatureExtractor):
             right = Conv2D(expand,  (3, 3), padding='same',  name=s_id + exp3x3)(x)
             right = Activation('relu', name=s_id + relu + exp3x3)(right)
 
-            x = Concatenate(axis=3, name=s_id + 'concat')([left, right])
+            x = Concatenate(axis=3, name=f'{s_id}concat')([left, right])
 
             return x
 
@@ -329,13 +341,13 @@ class SqueezeNetFeature(BaseFeatureExtractor):
         x = fire_module(x, fire_id=9, squeeze=64, expand=256)
 
         self.feature_extractor = Model(input_image, x)  
-        
+
         if weights == 'imagenet':
             print('Imagenet for SqueezeNet backend are not available yet, defaulting to random weights')
-        elif weights == None:
+        elif weights is None:
             pass
         else:
-            print('Loaded backend weigths: '+ weights)
+            print(f'Loaded backend weigths: {weights}')
             self.feature_extractor.load_weights(weights)
 
 
@@ -361,7 +373,7 @@ class DenseNet121Feature(BaseFeatureExtractor):
             densenet = DenseNet121(input_tensor=input_image, include_top=False, weights=None, pooling=None)
             if weights:
                 densenet.load_weights(weights)
-                print('Loaded backend weigths: ' + weights)
+                print(f'Loaded backend weigths: {weights}')
 
         self.feature_extractor = densenet
 
@@ -381,7 +393,7 @@ class NASNetMobileFeature(BaseFeatureExtractor):
             nasnetmobile = NASNetMobile(input_tensor=input_image, include_top=False, weights=None, pooling=None)
             if weights:
                 nasnetmobile.load_weights(weights)
-                print('Loaded backend weigths: ' + weights)
+                print(f'Loaded backend weigths: {weights}')
         self.feature_extractor = nasnetmobile
 
     def normalize(self, image):
@@ -400,7 +412,7 @@ class ResNet50Feature(BaseFeatureExtractor):
             resnet50 = ResNet50(input_tensor=input_image, include_top=False, pooling = None)
             if weights:
                 resnet50.load_weights(weights)
-                print('Loaded backend weigths: ' + weights)
+                print(f'Loaded backend weigths: {weights}')
 
         self.feature_extractor = resnet50
 

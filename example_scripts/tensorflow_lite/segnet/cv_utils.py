@@ -17,8 +17,7 @@ def preprocess(img):
     img = img - 0.5
     img = img * 2.
     img = img[:, :, ::-1]
-    img = np.expand_dims(img, 0)
-    return img
+    return np.expand_dims(img, 0)
 
 def decode_yolov2(netout, 
                   nms_threshold = 0.2,
@@ -30,18 +29,18 @@ def decode_yolov2(netout,
     netout = netout[0].reshape(7,7,5,6)
     grid_h, grid_w, nb_box = netout.shape[:3]
     boxes = []
-    
+
     # decode the output by the network
     netout[..., 4]  = _sigmoid(netout[..., 4])
     netout[..., 5:] = netout[..., 4][..., np.newaxis] * _softmax(netout[..., 5:])
     netout[..., 5:] *= netout[..., 5:] > threshold
-    
+
     for row in range(grid_h):
         for col in range(grid_w):
             for b in range(nb_box):
                 # from 4th element onwards are confidence and class classes
                 classes = netout[row,col,b,5:]
-                
+
                 if np.sum(classes) > 0:
                     # first 4 elements are x, y, w, and h
                     x, y, w, h = netout[row,col,b,:4]
@@ -53,13 +52,10 @@ def decode_yolov2(netout,
                     confidence = netout[row,col,b,4]
                     box = BoundBox(x, y, w, h, confidence, classes)
                     boxes.append(box)
-    
+
     boxes = nms_boxes(boxes, len(classes), nms_threshold, threshold)
 
-    if len(boxes) > 0:
-        return boxes_to_array(boxes)
-    else:
-        return []
+    return boxes_to_array(boxes) if len(boxes) > 0 else []
 
 def decode_yolov3(netout, 
                   nms_threshold = 0.2,
@@ -72,13 +68,13 @@ def decode_yolov3(netout,
     boxes = []
 
     for l, output in enumerate(netout):
-        grid_h, grid_w, nb_box = output.shape[0:3]
-        
+        grid_h, grid_w, nb_box = output.shape[:3]
+
         # decode the output by the network
         output[..., 4] = _sigmoid(output[..., 4])
         output[..., 5:] = output[..., 4][..., np.newaxis] * _sigmoid(output[..., 5:])
         output[..., 5:] *= output[..., 5:] > threshold
-        
+
         for row in range(grid_h):
             for col in range(grid_w):
                 for b in range(nb_box):
@@ -98,16 +94,12 @@ def decode_yolov3(netout,
 
     boxes = nms_boxes(boxes, len(classes), nms_threshold, threshold)
 
-    if len(boxes) > 0:
-        return boxes_to_array(boxes)
-    else:
-        return []
+    return boxes_to_array(boxes) if len(boxes) > 0 else []
 
 def decode_classifier(netout, top_k=3):
     netout = netout[0]
     ordered = np.argsort(netout)
-    results = [(i, netout[i]) for i in ordered[-top_k:][::-1]]
-    return results
+    return [(i, netout[i]) for i in ordered[-top_k:][::-1]]
 
 def decode_segnet(netout, labels, class_colors):
     netout = netout[0] 
@@ -140,8 +132,7 @@ def overlay_seg_image(inp_img, seg_img):
     orininal_w = inp_img.shape[1]
     seg_img = cv2.resize(seg_img, (orininal_w, orininal_h))
 
-    fused_img = (inp_img/2 + seg_img/2 ).astype('uint8')
-    return fused_img 
+    return (inp_img/2 + seg_img/2 ).astype('uint8') 
 
 def concat_lenends(seg_img, legend_img):
     
@@ -206,12 +197,15 @@ def create_video_writer(video, video_path, output_name):
         i += 1
         filename = output_name + str(i) + ext
 
-    video_writer = cv2.VideoWriter(filename=filename,
-                                   fourcc=get_source_encoding_int(video),
-                                   fps=int(video.get(cv2.CAP_PROP_FPS)),
-                                   frameSize=(int(video.get(cv2.CAP_PROP_FRAME_WIDTH)),
-                                              int(video.get(cv2.CAP_PROP_FRAME_HEIGHT))))
-    return video_writer
+    return cv2.VideoWriter(
+        filename=filename,
+        fourcc=get_source_encoding_int(video),
+        fps=int(video.get(cv2.CAP_PROP_FPS)),
+        frameSize=(
+            int(video.get(cv2.CAP_PROP_FRAME_WIDTH)),
+            int(video.get(cv2.CAP_PROP_FRAME_HEIGHT)),
+        ),
+    )
 
 
 def init_video_file_capture(video_path, output_name):
@@ -254,7 +248,7 @@ def draw_bounding_boxes(frame, detections, labels=None, processing_function=None
         cy = boxes[1] * frame_height
         w = boxes[2] * frame_width
         h = boxes[3] * frame_height
-        
+
         minmax_boxes[0] = cx - w/2
         minmax_boxes[1] = cy - h/2
         minmax_boxes[2] = cx + w/2
@@ -266,7 +260,7 @@ def draw_bounding_boxes(frame, detections, labels=None, processing_function=None
     label_color = (125, 125, 125)
 
     for i in range(len(detections)):
-        class_idx, box, confidence = [d for d in detections[i]]
+        class_idx, box, confidence = list(detections[i])
 
         # Obtain frame size and resized bounding box positions
         frame_height, frame_width = frame.shape[:2]
@@ -342,9 +336,14 @@ def boxes_to_array(bound_boxes):
         centroid_boxes : (N, 4)
         probs : (N, nb_classes)
     """
-    temp_list = []
-    for box in bound_boxes:
-        temp_list.append([np.argmax(box.classes), np.asarray([box.x, box.y, box.w, box.h]), np.max(box.classes)])
+    temp_list = [
+        [
+            np.argmax(box.classes),
+            np.asarray([box.x, box.y, box.w, box.h]),
+            np.max(box.classes),
+        ]
+        for box in bound_boxes
+    ]
 
     return np.array(temp_list)
 
@@ -364,15 +363,14 @@ def nms_boxes(boxes, n_classes, nms_threshold=0.3, obj_threshold=0.3):
 
         for i in range(len(sorted_indices)):
             index_i = sorted_indices[i]
-            
-            if boxes[index_i].classes[c] == 0: 
-                continue
-            else:
-                for j in range(i+1, len(sorted_indices)):
-                    index_j = sorted_indices[j]
 
-                    if boxes[index_i].iou(boxes[index_j]) >= nms_threshold:
-                        boxes[index_j].classes[c] = 0
+            if boxes[index_i].classes[c] == 0:
+                continue
+            for j in range(i+1, len(sorted_indices)):
+                index_j = sorted_indices[j]
+
+                if boxes[index_i].iou(boxes[index_j]) >= nms_threshold:
+                    boxes[index_j].classes[c] = 0
     # remove the boxes which are less likely than a obj_threshold
     boxes = [box for box in boxes if box.get_score() > obj_threshold]
     return boxes
@@ -381,39 +379,33 @@ def centroid_box_iou(box1, box2):
     def _interval_overlap(interval_a, interval_b):
         x1, x2 = interval_a
         x3, x4 = interval_b
-    
+
         if x3 < x1:
-            if x4 < x1:
-                return 0
-            else:
-                return min(x2,x4) - x1
+            return 0 if x4 < x1 else min(x2,x4) - x1
         else:
-            if x2 < x3:
-                return 0
-            else:
-                return min(x2,x4) - x3
-    
+            return 0 if x2 < x3 else min(x2,x4) - x3
+
     _, _, w1, h1 = box1.reshape(-1,)
     _, _, w2, h2 = box2.reshape(-1,)
     x1_min, y1_min, x1_max, y1_max = to_minmax(box1.reshape(-1,4)).reshape(-1,)
     x2_min, y2_min, x2_max, y2_max = to_minmax(box2.reshape(-1,4)).reshape(-1,)
-            
+
     intersect_w = _interval_overlap([x1_min, x1_max], [x2_min, x2_max])
     intersect_h = _interval_overlap([y1_min, y1_max], [y2_min, y2_max])
     intersect = intersect_w * intersect_h
     union = w1 * h1 + w2 * h2 - intersect
-    
+
     return float(intersect) / union
 
 def to_minmax(centroid_boxes):
     centroid_boxes = centroid_boxes.astype(np.float)
     minmax_boxes = np.zeros_like(centroid_boxes)
-    
+
     cx = centroid_boxes[:,0]
     cy = centroid_boxes[:,1]
     w = centroid_boxes[:,2]
     h = centroid_boxes[:,3]
-    
+
     minmax_boxes[:,0] = cx - w/2
     minmax_boxes[:,1] = cy - h/2
     minmax_boxes[:,2] = cx + w/2

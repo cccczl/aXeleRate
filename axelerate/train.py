@@ -67,22 +67,21 @@ def train_from_config(config,project_folder):
                                            config['train']['first_trainable_layer'],
                                            config['train']['ignore_zero_class'],
                                            config['train']['valid_metric'])
-               
+
     #  Classifier
     if config['model']['type']=='Classifier':
-        print('Classifier')           
-        if config['model']['labels']:
-            labels = config['model']['labels']
-        else:
-            labels = get_labels(config['train']['train_image_folder'])
-                 # 1. Construct the model 
+        print('Classifier')
+        labels = config['model']['labels'] or get_labels(
+            config['train']['train_image_folder']
+        )
+
         classifier = create_classifier(config['model']['architecture'],
                                        labels,
                                        input_size,
                                        config['model']['fully-connected'],
                                        config['model']['dropout'],
                                        config['weights']['backend'],
-                                       config['weights']['save_bottleneck'])   
+                                       config['weights']['save_bottleneck'])
         # 2. Load the pretrained weights (if any) 
         classifier.load_weights(config['weights']['full'], by_name=True)
 
@@ -106,10 +105,10 @@ def train_from_config(config,project_folder):
         if config['train']['is_only_detect']:
             labels = ["object"]
         else:
-            if config['model']['labels']:
-                labels = config['model']['labels']
-            else:
-                labels = get_object_labels(config['train']['train_annot_folder'])
+            labels = config['model']['labels'] or get_object_labels(
+                config['train']['train_annot_folder']
+            )
+
         print(labels)
 
         # 1. Construct the model 
@@ -122,7 +121,7 @@ def train_from_config(config,project_folder):
                            config['model']['object_scale'],
                            config['model']['no_object_scale'],
                            config['weights']['backend'])
-        
+
         # 2. Load the pretrained weights (if any) 
         yolo.load_weights(config['weights']['full'], by_name=True)
 
@@ -142,7 +141,7 @@ def train_from_config(config,project_folder):
                                            config['train']['valid_metric'])
     # 4 Convert the model
     time.sleep(2)
-    converter.convert_model(model_path)    
+    converter.convert_model(model_path)
     return model_path
 
 def setup_training(config_file=None, config_dict=None):
@@ -157,9 +156,12 @@ def setup_training(config_file=None, config_dict=None):
         sys.exit()
     dirname = os.path.join("projects", config['train']['saved_folder'])
     if os.path.isdir(dirname):
-        print("Project folder {} already exists. Creating a folder for new training session.".format(dirname))
+        print(
+            f"Project folder {dirname} already exists. Creating a folder for new training session."
+        )
+
     else:
-        print("Project folder {} is created.".format(dirname, dirname))
+        print(f"Project folder {dirname} is created.")
         os.makedirs(dirname)
 
     return(train_from_config(config, dirname))

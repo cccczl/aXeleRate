@@ -32,7 +32,7 @@ def create_yolo(architecture,
                 weights=None):
 
     n_classes = len(labels)
-    n_boxes = int(len(anchors)/2)
+    n_boxes = len(anchors) // 2
     yolo_network = create_yolo_network(architecture, input_size, n_classes, n_boxes, weights)
     yolo_loss = YoloLoss(yolo_network.get_grid_size(),
                          n_classes,
@@ -43,8 +43,7 @@ def create_yolo(architecture,
                          no_object_scale)
 
     yolo_decoder = YoloDecoder(anchors)
-    yolo = YOLO(yolo_network, yolo_loss, yolo_decoder, labels, input_size)
-    return yolo
+    return YOLO(yolo_network, yolo_loss, yolo_decoder, labels, input_size)
 
 
 class YOLO(object):
@@ -126,15 +125,18 @@ class YOLO(object):
         # 1. get batch generator
         valid_batch_size = len(valid_annotations)*valid_times
         if valid_batch_size < batch_size: 
-            raise ValueError("Not enough validation images: batch size {} is larger than {} validation images. Add more validation images or decrease batch size!".format(batch_size, valid_batch_size))
-        
+            raise ValueError(
+                f"Not enough validation images: batch size {batch_size} is larger than {valid_batch_size} validation images. Add more validation images or decrease batch size!"
+            )
+
+
         train_batch_generator = self._get_batch_generator(train_annotations, batch_size, train_times, jitter=jitter)
         valid_batch_generator = self._get_batch_generator(valid_annotations, batch_size, valid_times, jitter=False)
-        
+
         # 2. To train model get keras model instance & loss fucntion
         model = self._yolo_network.get_model(first_trainable_layer)
         loss = self._get_loss_func(batch_size)
-        
+
         # 3. Run training loop
         return train(model,
                 loss,
@@ -160,13 +162,14 @@ class YOLO(object):
         # Returns
             batch_generator : BatchGenerator instance
         """
-        batch_generator = create_batch_generator(annotations,
-                                                 self._input_size,
-                                                 self._yolo_network.get_grid_size(),
-                                                 batch_size,
-                                                 self._yolo_loss.anchors,
-                                                 repeat_times,
-                                                 jitter=jitter,
-                                                 norm=self._yolo_network.get_normalize_func())
-        return batch_generator
+        return create_batch_generator(
+            annotations,
+            self._input_size,
+            self._yolo_network.get_grid_size(),
+            batch_size,
+            self._yolo_loss.anchors,
+            repeat_times,
+            jitter=jitter,
+            norm=self._yolo_network.get_normalize_func(),
+        )
     

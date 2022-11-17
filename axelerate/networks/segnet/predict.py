@@ -20,10 +20,11 @@ random.seed(DATA_LOADER_SEED)
 def model_from_checkpoint_path(checkpoints_path):
 
     from .models.all_models import model_from_name
-    assert (os.path.isfile(checkpoints_path+"_config.json")
-            ), "Checkpoint not found."
-    model_config = json.loads(
-        open(checkpoints_path+"_config.json", "r").read())
+    assert os.path.isfile(
+        f"{checkpoints_path}_config.json"
+    ), "Checkpoint not found."
+
+    model_config = json.loads(open(f"{checkpoints_path}_config.json", "r").read())
     latest_weights = find_latest_checkpoint(checkpoints_path)
     assert (latest_weights is not None), "Checkpoint not found."
     model = model_from_name[model_config['model_class']](
@@ -64,8 +65,7 @@ def overlay_seg_image(inp_img , seg_img):
     orininal_w = inp_img.shape[1]
     seg_img = cv2.resize(seg_img, (orininal_w, orininal_h))
 
-    fused_img = (inp_img/2 + seg_img/2 ).astype('uint8')
-    return fused_img 
+    return (inp_img/2 + seg_img/2 ).astype('uint8') 
 
 def concat_lenends(  seg_img , legend_img  ):
     
@@ -90,22 +90,22 @@ def visualize_segmentation(seg_arr, inp_img=None, n_classes=None,
 
     seg_img = get_colored_segmentation_image(seg_arr, n_classes , colors=colors)
 
-    if not inp_img is None:
+    if inp_img is not None:
         orininal_h = inp_img.shape[0]
         orininal_w = inp_img.shape[1]
         seg_img = cv2.resize(seg_img, (orininal_w, orininal_h))
 
-    if (not prediction_height is None) and (not prediction_width is None):
+    if prediction_height is not None and prediction_width is not None:
         seg_img = cv2.resize(seg_img, (prediction_width, prediction_height ))
-        if not inp_img is None:
+        if inp_img is not None:
             inp_img = cv2.resize(inp_img, (prediction_width, prediction_height))
-            
+
     if overlay_img:
-        assert not inp_img is None
+        assert inp_img is not None
         seg_img = overlay_seg_image(inp_img, seg_img)
 
     if show_legends:
-        assert not class_names is None
+        assert class_names is not None
         legend_img = get_legends(class_names , colors=colors )
 
         seg_img = concat_lenends(seg_img, legend_img)
@@ -150,11 +150,10 @@ def predict_multiple(model=None, inps=None, inp_dir=None, out_dir=None,
     for i, inp in enumerate(tqdm(inps)):
         if out_dir is None:
             out_fname = None
+        elif isinstance(inp, six.string_types):
+            out_fname = os.path.join(out_dir, os.path.basename(inp))
         else:
-            if isinstance(inp, six.string_types):
-                out_fname = os.path.join(out_dir, os.path.basename(inp))
-            else:
-                out_fname = os.path.join(out_dir, str(i) + ".jpg")
+            out_fname = os.path.join(out_dir, f"{str(i)}.jpg")
 
         pr = predict( model, inp, out_fname ,
             overlay_img=overlay_img,class_names=class_names ,show_legends=show_legends , 

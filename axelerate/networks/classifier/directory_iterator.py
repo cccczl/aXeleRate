@@ -95,33 +95,43 @@ class DirectoryIterator(BatchFromFilesMixin, Iterator):
         self.directory = directory
         self.classes = classes
         if class_mode not in self.allowed_class_modes:
-            raise ValueError('Invalid class_mode: {}; expected one of: {}'
-                             .format(class_mode, self.allowed_class_modes))
+            raise ValueError(
+                f'Invalid class_mode: {class_mode}; expected one of: {self.allowed_class_modes}'
+            )
+
         self.class_mode = class_mode
         self.dtype = dtype
         # First, count the number of samples and classes.
         self.samples = 0
 
         if not classes:
-            classes = []
-            for subdir in sorted(os.listdir(directory)):
-                if os.path.isdir(os.path.join(directory, subdir)):
-                    classes.append(subdir)
+            classes = [
+                subdir
+                for subdir in sorted(os.listdir(directory))
+                if os.path.isdir(os.path.join(directory, subdir))
+            ]
+
         self.num_classes = len(classes)
         self.class_indices = dict(zip(classes, range(len(classes))))
 
         pool = multiprocessing.pool.ThreadPool()
 
-        # Second, build an index of the images
-        # in the different class subfolders.
-        results = []
         self.filenames = []
         i = 0
-        for dirpath in (os.path.join(directory, subdir) for subdir in classes):
-            results.append(
-                pool.apply_async(_list_valid_filenames_in_directory,
-                                 (dirpath, self.white_list_formats, self.split,
-                                  self.class_indices, follow_links)))
+        results = [
+            pool.apply_async(
+                _list_valid_filenames_in_directory,
+                (
+                    dirpath,
+                    self.white_list_formats,
+                    self.split,
+                    self.class_indices,
+                    follow_links,
+                ),
+            )
+            for dirpath in (os.path.join(directory, subdir) for subdir in classes)
+        ]
+
         classes_list = []
         for res in results:
             classes, filenames = res.get()

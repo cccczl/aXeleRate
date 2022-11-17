@@ -11,7 +11,7 @@ def find_latest_checkpoint(checkpoints_path, fail_safe=True):
         return path.replace(checkpoints_path, "").strip(".")
 
     # Get all matching files
-    all_checkpoint_files = glob.glob(checkpoints_path + ".*")
+    all_checkpoint_files = glob.glob(f"{checkpoints_path}.*")
     # Filter out entries where the epoc_number part is pure number
     all_checkpoint_files = list(filter(lambda f: get_epoch_number_from_path(f).isdigit(), all_checkpoint_files))
     if not len(all_checkpoint_files):
@@ -91,7 +91,7 @@ def train(model,
                       metrics=['accuracy'])
 
     if checkpoints_path is not None:
-        with open(checkpoints_path+"_config.json", "w") as f:
+        with open(f"{checkpoints_path}_config.json", "w") as f:
             json.dump({
                 "model_class": model.model_name,
                 "n_classes": n_classes,
@@ -135,8 +135,8 @@ def train(model,
             print("Starting Epoch ", ep)
             model.fit_generator(train_gen, steps_per_epoch, epochs=1)
             if checkpoints_path is not None:
-                model.save_weights(checkpoints_path + "." + str(ep))
-                print("saved ", checkpoints_path + ".model." + str(ep))
+                model.save_weights(f"{checkpoints_path}.{str(ep)}")
+                print("saved ", f"{checkpoints_path}.model.{str(ep)}")
             print("Finished Epoch", ep)
     else:
         for ep in range(epochs):
@@ -145,6 +145,6 @@ def train(model,
                                 validation_data=val_gen,
                                 validation_steps=val_steps_per_epoch,  epochs=1 , use_multiprocessing=gen_use_multiprocessing)
             if checkpoints_path is not None:
-                model.save_weights(checkpoints_path + "." + str(ep))
-                print("saved ", checkpoints_path + ".model." + str(ep))
+                model.save_weights(f"{checkpoints_path}.{str(ep)}")
+                print("saved ", f"{checkpoints_path}.model.{str(ep)}")
             print("Finished Epoch", ep)

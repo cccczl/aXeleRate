@@ -79,7 +79,7 @@ def get_image_array(image_input, norm, ordering='channels_first'):
         img = cv2.imread(image_input, 1)
     else:
         raise DataLoaderError("get_image_array: Can't process input type {0}".format(str(type(image_input))))
-        
+
     if norm:
         img = norm(img)
 
@@ -126,7 +126,7 @@ def verify_segmentation_dataset(images_path, segs_path, n_classes, show_all_erro
             img = cv2.imread(im_fn)
             seg = cv2.imread(seg_fn)
             # Check dimensions match
-            if not img.shape == seg.shape:
+            if img.shape != seg.shape:
                 return_value = False
                 print("The size of image {0} and its segmentation {1} doesn't match (possibly the files are corrupt).".format(im_fn, seg_fn))
                 if not show_all_errors:
@@ -157,10 +157,17 @@ def create_batch_generator(images_path, segs_path,
                            do_augment=False,
                            norm=None):
 
-    worker = BatchGenerator(images_path, segs_path, batch_size,
-                 n_classes, input_size, output_size, repeat_times, 
-                 do_augment, norm)
-    return worker
+    return BatchGenerator(
+        images_path,
+        segs_path,
+        batch_size,
+        n_classes,
+        input_size,
+        output_size,
+        repeat_times,
+        do_augment,
+        norm,
+    )
 
 
 class BatchGenerator(Sequence):
@@ -190,7 +197,7 @@ class BatchGenerator(Sequence):
         """
         x_batch = []
         y_batch= []
-        for i in range(self._batch_size):
+        for _ in range(self._batch_size):
             img, seg = next(self.zipped)
             img = cv2.imread(img, 1)[...,::-1]
             seg = cv2.imread(seg, 1)

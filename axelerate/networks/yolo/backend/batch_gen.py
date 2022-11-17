@@ -28,14 +28,15 @@ def create_batch_generator(annotations,
     yolo_box = _YoloBox(input_size, grid_size)
     netin_gen = _NetinGen(input_size, norm)
     netout_gen = _NetoutGen(grid_size, annotations.n_classes(), anchors)
-    worker = BatchGenerator(netin_gen,
-                            netout_gen,
-                            yolo_box,
-                            img_aug,
-                            annotations,
-                            batch_size,
-                            repeat_times)
-    return worker
+    return BatchGenerator(
+        netin_gen,
+        netout_gen,
+        yolo_box,
+        img_aug,
+        annotations,
+        batch_size,
+        repeat_times,
+    )
 
 
 class BatchGenerator(Sequence):
@@ -76,9 +77,7 @@ class BatchGenerator(Sequence):
             imgs_list.append(self._netin_gen.run(img))
             annotations = []
             for j in range(len(boxes)):
-                annotation = []
-                for item in boxes[j].tolist():
-                    annotation.append(item)
+                annotation = list(boxes[j].tolist())
                 annotation.append(labels[j])
                 annotations.append(annotation)
             anns_list.append(np.array(annotations))
@@ -106,7 +105,7 @@ class BatchGenerator(Sequence):
             else:
                 norm_boxes = [[0,0,0,0]]
                 labels = [-1]
-            
+
             # 4. generate x_batch
             x_batch.append(self._netin_gen.run(img))
             y_batch.append(self._netout_gen.run(norm_boxes, labels))
@@ -156,10 +155,7 @@ class _NetinGen(object):
         return self._norm(image)
     
     def _set_norm(self, norm):
-        if norm is None:
-            return lambda x: x
-        else:
-            return norm
+        return (lambda x: x) if norm is None else norm
 
 
 class _NetoutGen(object):

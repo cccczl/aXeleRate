@@ -21,7 +21,7 @@ def configs(network_type):
             "full":   				"",
             "backend":   		    None,
             "save_bottleneck":      True
-        
+
         },
         "train" : {
             "actual_epoch":         5,
@@ -123,7 +123,7 @@ argparser.add_argument(
     '--type',
     default="all",
     help='type of network to test:classifier,detector,segnet or all')
-    
+
 argparser.add_argument(
     '-a',
     '--arch',

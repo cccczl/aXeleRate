@@ -10,15 +10,14 @@ from tensorflow.keras.layers import Dense, GlobalAveragePooling2D, Dropout
 from tensorflow.keras.applications.mobilenet import preprocess_input
 
 def get_labels(directory):
-    labels = sorted(os.listdir(directory))
-    return labels
+    return sorted(os.listdir(directory))
 
 def create_classifier(architecture, labels, input_size, layers, dropout, weights=None, save_bottleneck=False):
     base_model=create_feature_extractor(architecture, input_size, weights)
     x=base_model.feature_extractor.outputs[0]
     x=GlobalAveragePooling2D()(x)
     if len(layers) != 0:
-        for layer in layers[0:-1]:
+        for layer in layers[:-1]:
             x=Dense(layer,activation='relu')(x) 
             x=Dropout(dropout)(x)
         x=Dense(layers[-1],activation='relu')(x)
@@ -28,9 +27,9 @@ def create_classifier(architecture, labels, input_size, layers, dropout, weights
     bottleneck_layer = None
     if save_bottleneck:
         bottleneck_layer = base_model.feature_extractor.layers[-1].name
-    network = Classifier(model, input_size, labels, base_model.normalize, bottleneck_layer)
-
-    return network
+    return Classifier(
+        model, input_size, labels, base_model.normalize, bottleneck_layer
+    )
 
 class Classifier(object):
     def __init__(self,
@@ -81,7 +80,7 @@ class Classifier(object):
               first_trainable_layer=None,
               metrics="val_loss"):
 
-        if metrics != "val_accuracy" and metrics != "val_loss":
+        if metrics not in ["val_accuracy", "val_loss"]:
             print("Unknown metric for Classifier, valid options are: val_loss or val_accuracy. Defaulting ot val_loss")
             metrics = "val_loss"
 

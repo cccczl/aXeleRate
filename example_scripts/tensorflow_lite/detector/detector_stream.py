@@ -49,10 +49,9 @@ class Detector(NetworkExecutor):
         super().__init__(model_file)
         self._threshold = float(threshold)
 
-        if not os.path.exists(label_file):
-            self.labels = [label_file]
-        else:   
-            self.labels = load_labels(label_file)
+        self.labels = (
+            load_labels(label_file) if os.path.exists(label_file) else [label_file]
+        )
 
     def detect(self, original_image):
         start_time = time.time()
@@ -94,7 +93,7 @@ if args.source == "cv":
 elif args.source == "picamera":
     from camera_pi import Camera
     source = 0
-    
+
 Camera.set_video_source(source)
 
 detector = Detector(args.labels, args.model, args.threshold)

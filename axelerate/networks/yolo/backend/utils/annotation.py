@@ -114,11 +114,8 @@ class PascalVocXmlParser(object):
         """
 
         root = self._root_tag(annotation_file)
-        labels = []
         obj_tags = root.findall("object")
-        for t in obj_tags:
-            labels.append(t.find("name").text)
-        return labels
+        return [t.find("name").text for t in obj_tags]
     
     def get_boxes(self, annotation_file):
         """
@@ -141,17 +138,14 @@ class PascalVocXmlParser(object):
             y2 = box_tag.find("ymax").text
             box = np.array([int(float(x1)), int(float(y1)), int(float(x2)), int(float(y2))])
             bbs.append(box)
-        bbs = np.array(bbs)
-        return bbs
+        return np.array(bbs)
 
     def _root_tag(self, fname):
         tree = parse(fname)
-        root = tree.getroot()
-        return root
+        return tree.getroot()
 
     def _tree(self, fname):
-        tree = parse(fname)
-        return tree
+        return parse(fname)
 
 def parse_annotation(ann_dir, img_dir, labels_naming=[], is_only_detect=False):
     """
@@ -164,7 +158,7 @@ def parse_annotation(ann_dir, img_dir, labels_naming=[], is_only_detect=False):
         all_imgs : list of dict
     """
     parser = PascalVocXmlParser()
-    
+
     if is_only_detect:
         annotations = Annotations(["object"])
     else:
@@ -177,18 +171,17 @@ def parse_annotation(ann_dir, img_dir, labels_naming=[], is_only_detect=False):
 
         labels = parser.get_labels(annotation_file)
         boxes = parser.get_boxes(annotation_file)
-        
+
         for label, box in zip(labels, boxes):
             x1, y1, x2, y2 = box
             if is_only_detect:
                 annotation.add_object(x1, y1, x2, y2, name="object")
-            else:
-                if label in labels_naming:
-                    annotation.add_object(x1, y1, x2, y2, name=label)
-                    
+            elif label in labels_naming:
+                annotation.add_object(x1, y1, x2, y2, name=label)
+
         if annotation.boxes is not None:
             annotations.add(annotation)
-                        
+
     return annotations
             
 
@@ -248,14 +241,11 @@ class Annotations(object):
             code_labels : list of int
         """
         str_labels = self.labels(i)
-        labels = []
-        for label in str_labels:
-            labels.append(self._label_namings.index(label))
+        labels = [self._label_namings.index(label) for label in str_labels]
         return labels
 
     def _valid_index(self, i):
-        valid_index = i % len(self._components)
-        return valid_index
+        return i % len(self._components)
 
     def __len__(self):
         return len(self._components)

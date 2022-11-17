@@ -27,9 +27,11 @@ def transfer_weights(m1, m2, verbose=True):
 
     for l, ll in bar:
 
-        if not any([w.shape != ww.shape for w, ww in zip(list(l.weights),
-                                                         list(ll.weights))]):
-            if len(list(l.weights)) > 0:
+        if all(
+            w.shape == ww.shape
+            for w, ww in zip(list(l.weights), list(ll.weights))
+        ):
+            if list(l.weights):
                 ll.set_weights(l.get_weights())
                 nSet += 1
         else:

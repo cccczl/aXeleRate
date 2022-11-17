@@ -25,7 +25,7 @@ class MapEvaluation(tensorflow.keras.callbacks.Callback):
                  save_best=False,
                  save_name=None,
                  tensorboard=None):
-                 
+
         super().__init__()
         self._yolo = yolo
         self._generator = generator
@@ -46,35 +46,38 @@ class MapEvaluation(tensorflow.keras.callbacks.Callback):
             raise ValueError("Tensorboard object must be a instance from keras.callbacks.TensorBoard")
 
     def on_epoch_end(self, epoch, logs={}):
+        if epoch % self._period != 0 or self._period == 0:
+            return
+        _map, average_precisions = self.evaluate_map()
+        print('\n')
+        for label, average_precision in average_precisions.items():
+            print(self._yolo._labels[label], '{:.4f}'.format(average_precision))
+        print('mAP: {:.4f}'.format(_map))
+
+        if epoch == 0:
+            print("Saving model on first epoch irrespective of mAP")
+            self.model.save(self._save_name,overwrite=True,include_optimizer=False)
+        elif self._save_best and self._save_name is not None and _map > self.bestMap:
+            print(
+                f"mAP improved from {self.bestMap} to {_map}, saving model to {self._save_name}."
+            )
+
+            self.bestMap = _map
+            self.model.save(self._save_name,overwrite=True,include_optimizer=False)
+        else:
+            print(f"mAP did not improve from {self.bestMap}.")
+
+
         logs = logs or {}
-        if epoch % self._period == 0 and self._period != 0:
-            _map, average_precisions = self.evaluate_map()
-            print('\n')
-            for label, average_precision in average_precisions.items():
-                print(self._yolo._labels[label], '{:.4f}'.format(average_precision))
-            print('mAP: {:.4f}'.format(_map))
+        self.loss.append(logs.get("loss"))
+        self.val_loss.append(logs.get("val_loss"))
+        self.maps.append(_map)
 
-            if epoch == 0:
-                print("Saving model on first epoch irrespective of mAP")
-                self.model.save(self._save_name,overwrite=True,include_optimizer=False)
-            else:
-                if self._save_best and self._save_name is not None and _map > self.bestMap:
-                    print("mAP improved from {} to {}, saving model to {}.".format(self.bestMap, _map, self._save_name))
-                    self.bestMap = _map
-                    self.model.save(self._save_name,overwrite=True,include_optimizer=False)
-                else:
-                    print("mAP did not improve from {}.".format(self.bestMap))
-
-
-            self.loss.append(logs.get("loss"))
-            self.val_loss.append(logs.get("val_loss"))
-            self.maps.append(_map)
-
-            if self._tensorboard:
-                writer = tf.summary.create_file_writer(self._tensorboard.log_dir)
-                with writer.as_default():
-                    tf.summary.scalar("mAP", _map, step=epoch)
-                    writer.flush()
+        if self._tensorboard:
+            writer = tf.summary.create_file_writer(self._tensorboard.log_dir)
+            with writer.as_default():
+                tf.summary.scalar("mAP", _map, step=epoch)
+                writer.flush()
 
     def evaluate_map(self):
         average_precisions = self._calc_avg_precisions()
@@ -230,7 +233,5 @@ def compute_ap(recall, precision):
     # where X axis (recall) changes value
     i = np.where(mrec[1:] != mrec[:-1])[0]
 
-    # and sum (\Delta recall) * prec
-    ap = np.sum((mrec[i + 1] - mrec[i]) * mpre[i + 1])
-    return ap
+    return np.sum((mrec[i + 1] - mrec[i]) * mpre[i + 1])
 

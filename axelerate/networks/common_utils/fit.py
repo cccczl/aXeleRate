@@ -39,12 +39,12 @@ def train(model,
     train_start = time.time()
     train_date = datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
     path = os.path.join(project_folder, train_date)
-    basename = network.__class__.__name__ + "_best_"+ metrics
-    print('Current training session folder is {}'.format(path))
+    basename = f"{network.__class__.__name__}_best_{metrics}"
+    print(f'Current training session folder is {path}')
     os.makedirs(path)
-    save_weights_name = os.path.join(path, basename + '.h5')
-    save_plot_name = os.path.join(path, basename + '.jpg')
-    save_weights_name_ctrlc = os.path.join(path, basename + '_ctrlc.h5')
+    save_weights_name = os.path.join(path, f'{basename}.h5')
+    save_plot_name = os.path.join(path, f'{basename}.jpg')
+    save_weights_name_ctrlc = os.path.join(path, f'{basename}_ctrlc.h5')
     print('\n')
 
     # 1 Freeze layers
@@ -56,9 +56,7 @@ def train(model,
                 break
             layer.trainable = False
             fixed_layers.append(layer.name)
-    elif not first_trainable_layer:
-        pass
-    else:
+    elif first_trainable_layer:
         print('First trainable layer specified in config file is not in the model. Did you mean one of these?')
         for i,layer in enumerate(model.layers):
             print(i,layer.name)
@@ -76,23 +74,23 @@ def train(model,
     model.summary()
 
     #4 create callbacks   
-    
+
     tensorboard_callback = tf.keras.callbacks.TensorBoard("logs", histogram_freq=1)
-    
+
     early_stop = EarlyStopping(monitor=metrics, 
                        min_delta=0.001, 
                        patience=20, 
                        mode='auto', 
                        verbose=1,
                        restore_best_weights=True)
-                       
+
     checkpoint = ModelCheckpoint(save_weights_name, 
                                  monitor=metrics, 
                                  verbose=1, 
                                  save_best_only=True, 
                                  mode='auto', 
                                  period=1)
-                                 
+
     reduce_lr = ReduceLROnPlateau(monitor=metrics, factor=0.2,
                               patience=10, min_lr=0.00001,verbose=1)
 
@@ -132,7 +130,7 @@ def train(model,
         model.save(save_weights_name_ctrlc, overwrite=True, include_optimizer=False)
         shutil.copytree("logs", os.path.join(path, "logs"))  
         return model.layers, save_weights_name_ctrlc 
-        
+
     shutil.copytree("logs", os.path.join(path, "logs"))
     _print_time(time.time()-train_start)
     return model.layers, save_weights_name
